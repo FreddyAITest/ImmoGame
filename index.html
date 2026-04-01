@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="ImmoGame — Professioneller Immobilien-Investment-Rechner für den deutschen Markt. Analysiere Deals, berechne Cashflows, IRR und führe Stresstests durch." />
+  <title>ImmoGame — Immobilien-Investment-Rechner</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🏠</text></svg>" />
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              900: '#06090F',
+              800: '#0C1220',
+              700: '#111827',
+              600: '#1E293B',
+            },
+            gold: {
+              DEFAULT: '#F5A623',
+              light: '#FBBF24',
+              dark: '#D97706',
+            },
+            glass: {
+              border: 'rgba(255, 255, 255, 0.06)',
+              'border-hover': 'rgba(255, 255, 255, 0.12)',
+            },
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          backdropBlur: {
+            glass: '20px',
+          },
+        },
+      },
+    }
+  </script>
+
+  <!-- Custom CSS (animations, sliders, etc.) -->
+  <link rel="stylesheet" href="src/style.css" />
+
+  <!-- Supabase CDN (must load before our modules) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- jsPDF CDN for programmatic PDF export -->
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+</head>
+
+<body class="bg-dark-900 text-slate-100 font-sans min-h-screen overflow-x-hidden antialiased leading-relaxed">
+  <div class="relative z-[1] max-w-[1400px] mx-auto px-5 pt-6 pb-16">
+
+    <!-- ═══ Header ═══ -->
+    <header class="header-divider relative text-center mb-9 pt-10 pb-8 flex flex-col items-center">
+      <div class="inline-flex items-center gap-3 mb-3">
+        <div class="w-12 h-12 bg-gradient-to-br from-gold-light to-gold-dark rounded-xl flex items-center justify-center text-2xl glow-gold">🏠</div>
+        <span class="text-[2rem] font-extrabold tracking-tight bg-gradient-to-br from-gold-light to-gold bg-clip-text text-transparent">ImmoGame</span>
+      </div>
+      <p class="text-slate-400 text-base max-w-md">Professionelle Immobilien-Analyse für smarte Investoren</p>
+      
+      <div class="flex flex-col sm:flex-row items-center justify-center gap-3 mt-4">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.03] border border-glass-border rounded-full text-[0.65rem] font-medium text-slate-500" id="connection-badge">
+          <div class="w-1.5 h-1.5 rounded-full bg-slate-500 animate-pulse" id="connection-dot"></div>
+          <span id="connection-label">Verbinde…</span>
+        </div>
+        
+        <!-- Auth Container -->
+        <div id="auth-container" class="flex items-center gap-2 transition-all duration-300">
+          <div id="auth-logged-out" class="flex items-center gap-2">
+            <button id="btn-login-google" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-glass-border rounded-full text-[0.7rem] font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M21.35,11.1H12.18V13.83H18.69C18.36,17.64 15.19,19.27 12.19,19.27C8.36,19.27 5,16.25 5,12C5,7.9 8.2,4.73 12.2,4.73C15.29,4.73 17.1,6.7 17.1,6.7L19,4.72C19,4.72 16.56,2 12.1,2C6.42,2 2.03,6.8 2.03,12C2.03,17.05 6.16,22 12.25,22C17.6,22 21.5,18.33 21.5,12.91C21.5,11.76 21.35,11.1 21.35,11.1V11.1Z" /></svg>
+              Google
+            </button>
+            <button id="btn-login-github" class="inline-flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-glass-border rounded-full text-[0.7rem] font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all cursor-pointer">
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12C2,16.42 4.87,20.17 8.84,21.5C9.34,21.58 9.5,21.27 9.5,21C9.5,20.77 9.5,20.14 9.5,19.31C6.73,19.91 6.14,17.97 6.14,17.97C5.68,16.81 5.03,16.5 5.03,16.5C4.12,15.88 5.1,15.9 5.1,15.9C6.1,15.97 6.63,16.93 6.63,16.93C7.5,18.45 8.97,18 9.54,17.76C9.63,17.11 9.89,16.67 10.17,16.42C7.95,16.17 5.62,15.31 5.62,11.5C5.62,10.39 6,9.5 6.65,8.79C6.55,8.54 6.2,7.5 6.75,6.15C6.75,6.15 7.59,5.88 9.5,7.17C10.29,6.95 11.15,6.84 12,6.84C12.85,6.84 13.71,6.95 14.5,7.17C16.41,5.88 17.25,6.15 17.25,6.15C17.8,7.5 17.45,8.54 17.35,8.79C18,9.5 18.38,10.39 18.38,11.5C18.38,15.32 16.04,16.16 13.81,16.41C14.17,16.72 14.5,17.33 14.5,18.26C14.5,19.6 14.5,20.68 14.5,21C14.5,21.27 14.66,21.59 15.17,21.5C19.14,20.16 22,16.42 22,12A10,10 0 0,0 12,2Z"/></svg>
+              GitHub
+            </button>
+          </div>
+          <div id="auth-logged-in" class="hidden items-center gap-2">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-glass-border/40 border border-glass-border rounded-full text-[0.7rem] font-medium text-slate-200">
+              <span id="auth-user-name" class="max-w-[120px] truncate">Berechne...</span>
+            </div>
+            <button id="btn-logout" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-glass-border rounded-full text-[0.7rem] font-medium text-red-400 hover:bg-red-500/10 hover:text-red-300 hover:border-red-500/30 transition-all cursor-pointer">
+              Logout
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ═══ Tab Navigation ═══ -->
+    <nav class="flex gap-1 bg-dark-700/65 border border-glass-border rounded-2xl p-1 mb-8 max-w-[720px] mx-auto backdrop-blur-glass" role="tablist">
+      <button class="tab-btn flex-1 py-3 px-5 text-sm font-semibold rounded-xl transition-all duration-250 cursor-pointer whitespace-nowrap border-none active" data-tab="dealchecker" role="tab" id="tab-dealchecker">
+        <span class="mr-2">⚡</span>Deal-Checker
+      </button>
+      <button class="tab-btn flex-1 py-3 px-5 text-sm font-semibold text-slate-400 rounded-xl transition-all duration-250 cursor-pointer whitespace-nowrap border-none bg-transparent hover:text-slate-100 hover:bg-white/[0.04]" data-tab="deepdive" role="tab" id="tab-deepdive">
+        <span class="mr-2">🔬</span>Deep-Dive
+      </button>
+      <button class="tab-btn flex-1 py-3 px-5 text-sm font-semibold text-slate-400 rounded-xl transition-all duration-250 cursor-pointer whitespace-nowrap border-none bg-transparent hover:text-slate-100 hover:bg-white/[0.04]" data-tab="stresstest" role="tab" id="tab-stresstest">
+        <span class="mr-2">📊</span>Stress-Test
+      </button>
+      <button class="tab-btn flex-1 py-3 px-5 text-sm font-semibold text-slate-400 rounded-xl transition-all duration-250 cursor-pointer whitespace-nowrap border-none bg-transparent hover:text-slate-100 hover:bg-white/[0.04]" data-tab="deals" role="tab" id="tab-deals">
+        <span class="mr-2">💾</span>Meine Deals
+      </button>
+    </nav>
+
+    <!-- ═══ TAB 1: Deal-Checker ═══ -->
+    <section class="tab-content tab-animate" id="content-dealchecker" role="tabpanel">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-7 items-start">
+
+        <!-- Left: Quick Inputs -->
+        <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:bg-dark-600/40 overflow-hidden">
+          <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2">
+            <span>⚡</span> Schnell-Check
+          </div>
+
+          <div class="flex flex-col gap-1.5">
+            <label class="text-xs font-medium text-slate-400 flex items-center gap-1.5" for="qc-kaufpreis">Kaufpreis <span class="text-slate-500 font-normal">(€)</span></label>
+            <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20 placeholder:text-slate-500 placeholder:font-sans placeholder:font-normal" type="number" id="qc-kaufpreis" value="250000" min="10000" step="5000" placeholder="z.B. 250.000" />
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 mt-4">
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-slate-400" for="qc-kaltmiete">Kaltmiete <span class="text-slate-500 font-normal">(€ / Monat)</span></label>
+              <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="qc-kaltmiete" value="800" min="0" step="25" />
+            </div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-slate-400" for="qc-hausgeld">Hausgeld <span class="text-slate-500 font-normal">(€ / Monat)</span></label>
+              <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="qc-hausgeld" value="250" min="0" step="10" />
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-1.5 mt-4">
+            <label class="text-xs font-medium text-slate-400" for="qc-bundesland">Bundesland</label>
+            <select class="custom-select w-full px-3.5 py-2.5 pr-9 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20 cursor-pointer" id="qc-bundesland">
+              <option value="Baden-Württemberg">Baden-Württemberg</option>
+              <option value="Bayern">Bayern</option>
+              <option value="Berlin" selected>Berlin</option>
+              <option value="Brandenburg">Brandenburg</option>
+              <option value="Bremen">Bremen</option>
+              <option value="Hamburg">Hamburg</option>
+              <option value="Hessen">Hessen</option>
+              <option value="Mecklenburg-Vorpommern">Mecklenburg-Vorpommern</option>
+              <option value="Niedersachsen">Niedersachsen</option>
+              <option value="Nordrhein-Westfalen">Nordrhein-Westfalen</option>
+              <option value="Rheinland-Pfalz">Rheinland-Pfalz</option>
+              <option value="Saarland">Saarland</option>
+              <option value="Sachsen">Sachsen</option>
+              <option value="Sachsen-Anhalt">Sachsen-Anhalt</option>
+              <option value="Schleswig-Holstein">Schleswig-Holstein</option>
+              <option value="Thüringen">Thüringen</option>
+            </select>
+          </div>
+
+          <div class="section-sep my-5"></div>
+
+          <!-- Sliders -->
+          <div class="flex flex-col gap-1 mt-1">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-medium text-slate-400" for="qc-ek-slider">Eigenkapital</label>
+              <span class="font-mono text-sm font-semibold text-gold min-w-[60px] text-right" id="qc-ek-display">20 %</span>
+            </div>
+            <input type="range" id="qc-ek-slider" min="0" max="100" step="5" value="20" class="w-full bg-slate-900/80 border border-glass-border rounded" />
+          </div>
+
+          <div class="flex flex-col gap-1 mt-4">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-medium text-slate-400" for="qc-zins-slider">Zinssatz</label>
+              <span class="font-mono text-sm font-semibold text-gold min-w-[60px] text-right" id="qc-zins-display">3,5 %</span>
+            </div>
+            <input type="range" id="qc-zins-slider" min="1" max="7" step="0.1" value="3.5" class="w-full bg-slate-900/80 border border-glass-border rounded" />
+          </div>
+
+          <div class="flex flex-col gap-1 mt-4">
+            <div class="flex justify-between items-center">
+              <label class="text-xs font-medium text-slate-400" for="qc-tilgung-slider">Tilgung</label>
+              <span class="font-mono text-sm font-semibold text-gold min-w-[60px] text-right" id="qc-tilgung-display">2,0 %</span>
+            </div>
+            <input type="range" id="qc-tilgung-slider" min="1" max="5" step="0.1" value="2" class="w-full bg-slate-900/80 border border-glass-border rounded" />
+          </div>
+
+          <div class="mt-6 flex gap-2">
+            <button class="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold bg-gradient-to-br from-gold-light to-gold text-dark-900 rounded-lg shadow-sm transition-all duration-250 hover:shadow-lg hover:shadow-gold/20 hover:-translate-y-0.5 cursor-pointer border-none" id="qc-save-btn">💾 Deal speichern</button>
+          </div>
+        </div>
+
+        <!-- Right: Results -->
+        <div>
+          <!-- Ampel -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass overflow-hidden">
+            <div class="flex flex-col items-center gap-4 py-4" id="qc-ampel-container">
+              <div class="w-[100px] h-[100px] rounded-full flex items-center justify-center text-[2.5rem] transition-all duration-500 border-2 border-red-500 bg-red-500/10 ampel-rot" id="qc-ampel">—</div>
+              <span class="text-lg font-bold uppercase tracking-[2px] text-red-500" id="qc-ampel-label">Berechne...</span>
+            </div>
+          </div>
+
+          <!-- Quick Metrics -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-4" id="qc-metrics">
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden">
+              <div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Bruttomietrendite</div>
+              <div class="font-mono text-2xl font-bold text-gold" id="qc-bruttorendite">—</div>
+            </div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden">
+              <div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Kaufpreisfaktor</div>
+              <div class="font-mono text-2xl font-bold text-slate-100" id="qc-kaufpreisfaktor">—</div>
+            </div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden">
+              <div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Cashflow / Monat</div>
+              <div class="font-mono text-2xl font-bold" id="qc-cashflow">—</div>
+              <div class="text-xs text-slate-500 mt-1" id="qc-cashflow-sub"></div>
+            </div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden">
+              <div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Nettomietrendite</div>
+              <div class="font-mono text-2xl font-bold text-slate-100" id="qc-nettorendite">—</div>
+            </div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden">
+              <div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Kreditrate / Monat</div>
+              <div class="font-mono text-2xl font-bold text-slate-100" id="qc-kreditrate">—</div>
+            </div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden">
+              <div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Darlehen gesamt</div>
+              <div class="font-mono text-2xl font-bold text-slate-100" id="qc-darlehen">—</div>
+            </div>
+          </div>
+
+          <!-- Kaufnebenkosten -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass mt-4 overflow-hidden">
+            <div class="flex items-center justify-between cursor-pointer select-none py-1" id="qc-nk-toggle">
+              <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 flex items-center gap-2"><span>📋</span> Kaufnebenkosten</div>
+              <span class="toggle-icon transition-transform duration-250 text-slate-500 text-xs">▼</span>
+            </div>
+            <div class="collapsible-body" id="qc-nk-content">
+              <div class="mt-4" id="qc-nk-breakdown"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ TAB 2: Deep-Dive ═══ -->
+    <section class="tab-content tab-animate hidden" id="content-deepdive" role="tabpanel">
+      <div class="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-7 items-start">
+
+        <!-- Left: Inputs (sticky) -->
+        <div class="flex flex-col gap-5 xl:sticky xl:top-5 xl:max-h-[calc(100vh-40px)] xl:overflow-y-auto xl:pr-2 xl:scrollbar-thin">
+
+          <!-- Objekt -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover overflow-hidden">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2"><span>🏢</span> Objekt</div>
+            <div class="flex flex-col gap-1.5">
+              <label class="text-xs font-medium text-slate-400" for="dd-kaufpreis">Kaufpreis <span class="text-slate-500 font-normal">(€)</span></label>
+              <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-kaufpreis" value="250000" min="10000" step="5000" />
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-medium text-slate-400" for="dd-wohnflaeche">Wohnfläche <span class="text-slate-500 font-normal">(m²)</span></label>
+                <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-wohnflaeche" value="65" min="1" step="1" />
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-medium text-slate-400" for="dd-baujahr">Baujahr</label>
+                <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-baujahr" value="1990" min="1800" max="2026" step="1" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-medium text-slate-400" for="dd-bundesland">Bundesland</label>
+                <select class="custom-select w-full px-3.5 py-2.5 pr-9 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20 cursor-pointer" id="dd-bundesland">
+                  <option value="Baden-Württemberg">Baden-Württemberg</option><option value="Bayern">Bayern</option><option value="Berlin" selected>Berlin</option><option value="Brandenburg">Brandenburg</option><option value="Bremen">Bremen</option><option value="Hamburg">Hamburg</option><option value="Hessen">Hessen</option><option value="Mecklenburg-Vorpommern">Meck.-Vorpommern</option><option value="Niedersachsen">Niedersachsen</option><option value="Nordrhein-Westfalen">NRW</option><option value="Rheinland-Pfalz">Rheinland-Pfalz</option><option value="Saarland">Saarland</option><option value="Sachsen">Sachsen</option><option value="Sachsen-Anhalt">Sachsen-Anhalt</option><option value="Schleswig-Holstein">Schleswig-Holst.</option><option value="Thüringen">Thüringen</option>
+                </select>
+              </div>
+              <div class="flex flex-col gap-1.5">
+                <label class="text-xs font-medium text-slate-400" for="dd-gebaeudeanteil">Gebäudeanteil <span class="text-slate-500 font-normal">(%)</span></label>
+                <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-gebaeudeanteil" value="75" min="0" max="100" step="5" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Finanzierung -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover overflow-hidden">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2"><span>🏦</span> Finanzierung</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-eigenkapital">Eigenkapital <span class="text-slate-500 font-normal">(%)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-eigenkapital" value="20" min="0" max="100" step="5" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-zinssatz">Zinssatz <span class="text-slate-500 font-normal">(% p.a.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-zinssatz" value="3.5" min="0" max="10" step="0.1" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-tilgung">Tilgung <span class="text-slate-500 font-normal">(% p.a.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-tilgung" value="2" min="0.5" max="10" step="0.1" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-zinsbindung">Zinsbindung <span class="text-slate-500 font-normal">(Jahre)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-zinsbindung" value="10" min="1" max="30" step="1" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-sondertilgung">Sondertilgung <span class="text-slate-500 font-normal">(€/J.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-sondertilgung" value="0" min="0" step="500" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-modernisierung">Modernisierung <span class="text-slate-500 font-normal">(€)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-modernisierung" value="0" min="0" step="1000" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-makler">Makler <span class="text-slate-500 font-normal">(%)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-makler" value="3.57" min="0" max="7" step="0.01" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-notar">Notar+Grundb. <span class="text-slate-500 font-normal">(%)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-notar" value="2.0" min="0" max="5" step="0.1" /></div>
+            </div>
+          </div>
+
+          <!-- Mieteinnahmen -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover overflow-hidden">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2"><span>💰</span> Mieteinnahmen</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-kaltmiete">Kaltmiete <span class="text-slate-500 font-normal">(€/Mon.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-kaltmiete" value="800" min="0" step="25" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-hausgeld">Hausgeld <span class="text-slate-500 font-normal">(€/Mon.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-hausgeld" value="250" min="0" step="10" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-nichtumlagefaehig">Nicht-umlagef. <span class="text-slate-500 font-normal">(%)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-nichtumlagefaehig" value="35" min="0" max="100" step="5" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-verwaltung">Verwaltung <span class="text-slate-500 font-normal">(€/Mon.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-verwaltung" value="25" min="0" step="5" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-leerstand">Leerstand <span class="text-slate-500 font-normal">(%)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-leerstand" value="3" min="0" max="20" step="0.5" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-mietsteigerung">Mietsteigerung <span class="text-slate-500 font-normal">(%/J.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-mietsteigerung" value="1.5" min="0" max="5" step="0.1" /></div>
+            </div>
+          </div>
+
+          <!-- Steuern -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover overflow-hidden">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2"><span>📊</span> Steuern & Kosten</div>
+            <div class="grid grid-cols-2 gap-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-steuersatz">Grenzsteuersatz <span class="text-slate-500 font-normal">(%)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-steuersatz" value="42" min="0" max="45" step="1" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-grundsteuer">Grundsteuer <span class="text-slate-500 font-normal">(€/J.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-grundsteuer" value="400" min="0" step="50" /></div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-4">
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-wertsteigerung">Wertsteigerung <span class="text-slate-500 font-normal">(%/J.)</span></label><input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20" type="number" id="dd-wertsteigerung" value="1.5" min="0" max="10" step="0.1" /></div>
+              <div class="flex flex-col gap-1.5"><label class="text-xs font-medium text-slate-400" for="dd-afa-typ">AfA-Typ</label><select class="custom-select w-full px-3.5 py-2.5 pr-9 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20 cursor-pointer" id="dd-afa-typ"><option value="auto">Auto (Baujahr)</option><option value="altbau">Altbau 2,5%</option><option value="bestand">Bestand 2,0%</option><option value="neubau_linear">Neubau 3,0%</option><option value="neubau_degressiv">Neubau 5,0%</option></select></div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-3 mt-2">
+            <button class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold bg-gradient-to-br from-gold-light to-gold text-dark-900 rounded-lg shadow-sm transition-all duration-250 hover:shadow-lg hover:shadow-gold/20 hover:-translate-y-0.5 cursor-pointer border-none" id="dd-save-btn">💾 Deal speichern</button>
+            <button class="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-semibold bg-dark-600 text-slate-200 border border-glass-border rounded-lg shadow-sm transition-all duration-250 hover:bg-dark-500 hover:-translate-y-0.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed" id="dd-export-pdf-btn">📥 PDF-Exposé generieren</button>
+          </div>
+        </div>
+
+        <!-- Right: Results -->
+        <div class="flex flex-col gap-6" id="dd-export-area">
+          <!-- Key Metrics Row 1 -->
+          <div class="grid grid-cols-2 xl:grid-cols-4 gap-4" id="dd-metrics">
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Bruttomietrendite</div><div class="font-mono text-2xl font-bold text-gold" id="dd-bruttorendite">—</div></div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Cashflow / Monat</div><div class="font-mono text-2xl font-bold" id="dd-cashflow-monat">—</div></div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">IRR (10 Jahre)</div><div class="font-mono text-2xl font-bold text-gold" id="dd-irr">—</div></div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">EK-Multi (10 J.)</div><div class="font-mono text-2xl font-bold" id="dd-ek-multi">—</div></div>
+          </div>
+          <!-- Row 2 -->
+          <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Kaufpreisfaktor</div><div class="font-mono text-2xl font-bold" id="dd-kaufpreisfaktor">—</div></div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">Nettomietrendite</div><div class="font-mono text-2xl font-bold" id="dd-nettorendite">—</div></div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">EK-Rendite p.a.</div><div class="font-mono text-2xl font-bold" id="dd-ek-rendite">—</div></div>
+            <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-2xl p-5 backdrop-blur-glass transition-all duration-250 hover:border-glass-border-hover hover:-translate-y-0.5 hover:shadow-xl overflow-hidden"><div class="text-[0.7rem] font-semibold uppercase tracking-[1px] text-slate-500 mb-2">AfA (€ / Jahr)</div><div class="font-mono text-2xl font-bold" id="dd-afa-jahr">—</div></div>
+          </div>
+
+          <!-- Cashflow Chart -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass overflow-hidden">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2"><span>📈</span> 10-Jahres Cashflow-Verlauf</div>
+            <div class="relative w-full py-4"><canvas id="dd-cashflow-chart" class="w-full !h-[300px]"></canvas></div>
+          </div>
+
+          <!-- Wealth Chart -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass overflow-hidden">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-5 flex items-center gap-2"><span>🏗️</span> Vermögensaufbau</div>
+            <div class="relative w-full py-4"><canvas id="dd-wealth-chart" class="w-full !h-[300px]"></canvas></div>
+          </div>
+
+          <!-- Exit Panel -->
+          <div class="bg-gradient-to-br from-gold/5 to-blue-500/[0.03] border border-gold/15 rounded-[20px] p-7" id="dd-exit-panel">
+            <div class="text-xs font-bold uppercase tracking-[1.5px] text-gold mb-5 flex items-center gap-2">🚪 Exit-Szenario nach 10 Jahren</div>
+            <div id="dd-exit-rows"></div>
+          </div>
+
+          <!-- Annuitätenplan -->
+          <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass overflow-hidden">
+            <div class="flex items-center justify-between cursor-pointer select-none py-1" id="dd-annuitaeten-toggle">
+              <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 flex items-center gap-2"><span>📋</span> Annuitätenplan (10 Jahre)</div>
+              <span class="toggle-icon transition-transform duration-250 text-slate-500 text-xs">▼</span>
+            </div>
+            <div class="collapsible-body" id="dd-annuitaeten-content">
+              <div class="overflow-x-auto mt-4">
+                <table class="w-full border-collapse text-xs font-mono" id="dd-annuitaeten-table">
+                  <thead><tr>
+                    <th class="py-2.5 px-3 text-left font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">Jahr</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">Miete</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">Zinsen</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">Tilgung</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">Restschuld</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">CF v. St.</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">CF n. St.</th>
+                    <th class="py-2.5 px-3 text-right font-semibold text-slate-500 text-[0.7rem] uppercase tracking-[0.5px] border-b border-glass-border whitespace-nowrap">Kumuliert</th>
+                  </tr></thead>
+                  <tbody id="dd-annuitaeten-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ TAB 3: Stress-Test ═══ -->
+    <section class="tab-content tab-animate hidden" id="content-stresstest" role="tabpanel">
+      <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass mb-6 overflow-hidden">
+        <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-4 flex items-center gap-2"><span>📊</span> Sensitivitätsanalyse</div>
+        <p class="text-slate-400 text-sm mb-4">Die Matrix zeigt den monatlichen Cashflow (vor Steuern) bei verschiedenen Zins- und Miete-Kombinationen. Der aktuelle Deal ist markiert.</p>
+        <div class="overflow-x-auto mt-3" id="st-heatmap"></div>
+        <div class="flex justify-center gap-6 mt-4 text-xs text-slate-500">
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-green-500"></div> Positiver Cashflow</div>
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-yellow-500"></div> Leicht negativ</div>
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-red-500"></div> Stark negativ</div>
+          <div class="flex items-center gap-1.5"><div class="w-2.5 h-2.5 rounded-sm bg-gold outline outline-2 outline-gold"></div> Aktueller Deal</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="st-scenarios">
+        <div class="bg-dark-700/65 border border-green-500/30 rounded-2xl p-5 text-center transition-all duration-250">
+          <div class="text-xs font-bold uppercase tracking-[1px] text-green-500 mb-3">🟢 Best Case</div>
+          <div class="font-mono text-xl font-bold text-green-500 mb-1" id="st-best-cf">—</div>
+          <div class="text-[0.7rem] text-slate-500 uppercase tracking-[0.5px]">Cashflow / Monat</div>
+          <div class="font-mono text-xl font-bold text-slate-100 mt-4 mb-1" id="st-best-rendite">—</div>
+          <div class="text-[0.7rem] text-slate-500 uppercase tracking-[0.5px]">Bruttorendite</div>
+        </div>
+        <div class="bg-dark-700/65 border border-gold/30 rounded-2xl p-5 text-center transition-all duration-250">
+          <div class="text-xs font-bold uppercase tracking-[1px] text-gold mb-3">🟡 Base Case</div>
+          <div class="font-mono text-xl font-bold text-gold mb-1" id="st-base-cf">—</div>
+          <div class="text-[0.7rem] text-slate-500 uppercase tracking-[0.5px]">Cashflow / Monat</div>
+          <div class="font-mono text-xl font-bold text-slate-100 mt-4 mb-1" id="st-base-rendite">—</div>
+          <div class="text-[0.7rem] text-slate-500 uppercase tracking-[0.5px]">Bruttorendite</div>
+        </div>
+        <div class="bg-dark-700/65 border border-red-500/30 rounded-2xl p-5 text-center transition-all duration-250">
+          <div class="text-xs font-bold uppercase tracking-[1px] text-red-500 mb-3">🔴 Worst Case</div>
+          <div class="font-mono text-xl font-bold text-red-500 mb-1" id="st-worst-cf">—</div>
+          <div class="text-[0.7rem] text-slate-500 uppercase tracking-[0.5px]">Cashflow / Monat</div>
+          <div class="font-mono text-xl font-bold text-slate-100 mt-4 mb-1" id="st-worst-rendite">—</div>
+          <div class="text-[0.7rem] text-slate-500 uppercase tracking-[0.5px]">Bruttorendite</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ TAB 4: Meine Deals ═══ -->
+    <section class="tab-content tab-animate hidden" id="content-deals" role="tabpanel">
+      <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass overflow-hidden">
+        <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-4 flex items-center gap-2"><span>💾</span> Gespeicherte Deals</div>
+        <div class="flex flex-col gap-2 mt-4" id="deals-list">
+          <p class="text-slate-500 text-center py-8">Noch keine Deals gespeichert. Berechne einen Deal und klicke auf "Deal speichern".</p>
+        </div>
+        <div class="mt-6 flex gap-2 justify-end">
+          <button class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white/5 text-slate-400 border border-glass-border rounded-lg transition-all duration-250 hover:bg-white/[0.08] hover:text-slate-100 hover:border-glass-border-hover cursor-pointer" id="deals-export-btn">📤 JSON exportieren</button>
+          <button class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white/5 text-slate-400 border border-glass-border rounded-lg transition-all duration-250 hover:bg-white/[0.08] hover:text-slate-100 hover:border-glass-border-hover cursor-pointer" id="deals-import-btn">📥 JSON importieren</button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Save Modal -->
+  <div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] flex items-center justify-center opacity-0 pointer-events-none transition-opacity duration-250" id="save-modal">
+    <div class="bg-dark-800 border border-glass-border rounded-[20px] p-8 max-w-[440px] w-[90%] translate-y-5 transition-transform duration-500">
+      <div class="text-xl font-bold mb-5">💾 Deal speichern</div>
+      <div class="flex flex-col gap-1.5 mb-4">
+        <label class="text-xs font-medium text-slate-400" for="save-deal-name">Bezeichnung</label>
+        <input class="w-full px-3.5 py-2.5 font-mono text-[0.95rem] font-medium text-slate-100 bg-slate-900/80 border border-glass-border rounded-lg outline-none transition-all duration-150 focus:border-gold focus:ring-2 focus:ring-gold/20 placeholder:text-slate-500 placeholder:font-sans" type="text" id="save-deal-name" placeholder="z.B. 2-Zi ETW Berlin-Neukölln" />
+      </div>
+      <div class="flex gap-3 justify-end mt-6">
+        <button class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-white/5 text-slate-400 border border-glass-border rounded-lg transition-all duration-250 hover:bg-white/[0.08] hover:text-slate-100 cursor-pointer" id="save-modal-cancel">Abbrechen</button>
+        <button class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-gradient-to-br from-gold-light to-gold text-dark-900 rounded-lg transition-all duration-250 hover:shadow-lg hover:shadow-gold/20 cursor-pointer border-none" id="save-modal-confirm">Speichern</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="fixed bottom-6 right-6 px-6 py-3.5 bg-dark-800 border border-glass-border rounded-xl text-sm font-medium text-slate-100 shadow-2xl z-[2000] translate-y-[100px] opacity-0 transition-all duration-500" id="toast"></div>
+
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <!-- App -->
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

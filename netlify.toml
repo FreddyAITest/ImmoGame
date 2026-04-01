@@ -1,0 +1,30 @@
+# Netlify Configuration for ImmoGame
+# Static site — no build step needed.
+
+[build]
+  publish = "."
+
+# SPA-like redirects: serve index.html for all routes
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Security & performance headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+[[headers]]
+  for = "/src/*.js"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/src/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
