@@ -49,12 +49,16 @@ ImmoGame/
 ├── index.html          # Haupt-HTML mit Tailwind-UI
 ├── netlify.toml        # Netlify-Konfiguration
 ├── src/
-│   ├── main.js         # App-Logik, UI, Charts, PDF-Export
-│   ├── calculator.js   # Finanzberechnungen & Simulation
-│   ├── constants.js    # Bundesländer, Defaults, Sensitivität
-│   ├── auth.js         # Supabase OAuth (Google/GitHub)
-│   ├── storage.js      # CRUD-Operationen für Deals (Supabase)
-│   └── style.css       # Custom CSS (Animationen, Dark-Mode)
+│   ├── css/
+│   │   └── style.css   # Custom CSS (Animationen, Dark-Mode)
+│   ├── js/
+│   │   ├── api/
+│   │   │   ├── auth.js     # Supabase OAuth (Google/GitHub)
+│   │   │   └── storage.js  # CRUD-Operationen für Deals (Supabase)
+│   │   ├── core/
+│   │   │   ├── calculator.js # Finanzberechnungen & Simulation
+│   │   │   └── constants.js  # Bundesländer, Defaults, Sensitivität
+│   │   └── main.js         # App-Logik, UI, Charts, PDF-Export
 └── README.md
 ```
 

@@ -2,10 +2,10 @@
 // ImmoGame — Main Application Entry Point
 // ============================================================
 
-import { calculateDeal, calculateSensitivity, generateRange } from './calculator.js';
-import { BUNDESLAENDER, DEFAULTS, SENSITIVITY } from './constants.js';
-import { saveDeal as storageSaveDeal, getAllDeals, deleteDeal, loadDeal, exportDeals, importDeals, getConnectionStatus } from './storage.js';
-import { signIn, signOut, onAuthStateChange } from './auth.js';
+import { calculateDeal, calculateSensitivity, generateRange } from './core/calculator.js';
+import { BUNDESLAENDER, DEFAULTS, SENSITIVITY } from './core/constants.js';
+import { saveDeal as storageSaveDeal, getAllDeals, deleteDeal, loadDeal, exportDeals, importDeals, getConnectionStatus } from './api/storage.js';
+import { signIn, signOut, onAuthStateChange } from './api/auth.js';
 
 // ── State ─────────────────────────────────────────────────
 let currentResults = null;
@@ -585,7 +585,7 @@ function renderHeatmap(matrix, zinsRange, mieteRange, currentZins) {
       if (cell.cashflowMonat >= 0) colorCls = 'bg-green-500/10 text-green-500 border border-green-500/20';
       else if (cell.cashflowMonat >= -100) colorCls = 'bg-yellow-500/10 text-yellow-500 border border-yellow-500/20';
 
-      html += `<td class="heatmap-cell py-2.5 px-2 text-center rounded-lg font-semibold transition-all duration-150 cursor-default ${colorCls} ${isCurrent ? 'heatmap-current' : ''}">${fmt.eur(cell.cashflowMonat)}</td>`;
+      html += `<td class="p-0 relative text-center align-middle"><div class="heatmap-cell inline-flex items-center justify-center w-full h-full min-h-[40px] px-2 py-2.5 rounded-lg font-semibold transition-all duration-150 cursor-default ${colorCls} ${isCurrent ? 'heatmap-current' : ''}">${fmt.eur(cell.cashflowMonat)}</div></td>`;
     });
     html += '</tr>';
   });

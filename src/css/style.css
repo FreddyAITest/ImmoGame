@@ -126,6 +126,7 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 input[type="number"] {
   -moz-appearance: textfield;
+  appearance: textfield;
 }
 
 /* ── Heatmap Cell Hover ────────────────────────────────────── */
@@ -133,14 +134,15 @@ input[type="number"] {
   position: relative;
 }
 .heatmap-cell:hover {
-  transform: scale(1.08);
-  z-index: 10;
+  transform: scale(1.15);
+  z-index: 20;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
 }
 
 .heatmap-current {
   outline: 2px solid #F5A623;
-  outline-offset: 1px;
-  box-shadow: 0 0 30px rgba(245, 166, 35, 0.15);
+  outline-offset: -2px; /* Pull it inside so it doesn't break table flow */
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.3);
 }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
