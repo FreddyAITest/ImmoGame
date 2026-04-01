@@ -827,10 +827,10 @@ async function updateConnectionBadge() {
 
   if (status === 'supabase') {
     dot.className = 'w-1.5 h-1.5 rounded-full bg-green-500';
-    label.textContent = 'Supabase verbunden';
+    label.textContent = 'Connected';
   } else {
     dot.className = 'w-1.5 h-1.5 rounded-full bg-yellow-500';
-    label.textContent = 'Lokaler Speicher';
+    label.textContent = 'Lokaler Modus';
   }
 }
 
