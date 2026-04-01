@@ -48,7 +48,8 @@ export function calculateDeal(params) {
   // ── 5. Steuerberechnung (AfA) ───────────────────
   const afaType = p.afaType || getAfaType(p.baujahr);
   const afaInfo = AFA_RATES[afaType];
-  const gebaeudewert = p.kaufpreis * (p.gebaeudeantelil / 100);
+  // AfA-Grundlage includes Kaufnebenkosten (German tax law: Anschaffungsnebenkosten)
+  const gebaeudewert = (p.kaufpreis + kaufnebenkosten) * (p.gebaeudeantelil / 100);
   const afaJahr = gebaeudewert * (afaInfo.rate / 100);
 
   // Werbungskosten (Jahr 1) — Zinsen + AfA + NK
@@ -154,6 +155,7 @@ function simulate10Years(p, darlehenssumme, eigenkapital, annuitaet, afaInfo, ge
   let kaltmiete = p.kaltmiete;
   let immobilienWert = p.kaufpreis;
   let kumulierterCashflow = 0;
+  let aktuellerGebaeudewert = gebaeudewert; // For degressive AfA calculation
 
   // IRR cashflows: first is negative (equity investment)
   const irrCashflows = [-(eigenkapital)];
@@ -170,11 +172,24 @@ function simulate10Years(p, darlehenssumme, eigenkapital, annuitaet, afaInfo, ge
       immobilienWert *= (1 + p.wertsteigerungPa / 100);
     }
 
-    // Tilgungsverlauf
-    let zinsenJahr = restschuld * (p.zinssatz / 100);
-    let tilgungJahr = (annuitaet * 12) - zinsenJahr + (p.sondertilgung || 0);
-    tilgungJahr = Math.min(tilgungJahr, restschuld); // can't pay more than owed
-    restschuld = Math.max(0, restschuld - tilgungJahr);
+    // Tilgungsverlauf - simulate 12 months for accurate interest calculation
+    let zinsenJahr = 0;
+    let tilgungJahr = 0;
+
+    for (let m = 0; m < 12; m++) {
+      const zinsMonat = restschuld * (p.zinssatz / 100 / 12);
+      let tilgungMonat = annuitaet - zinsMonat;
+
+      if (tilgungMonat > restschuld) tilgungMonat = restschuld;
+
+      zinsenJahr += zinsMonat;
+      tilgungJahr += tilgungMonat;
+      restschuld -= tilgungMonat;
+    }
+
+    // Add Sondertilgung at end of year
+    tilgungJahr += (p.sondertilgung || 0);
+    restschuld = Math.max(0, restschuld - (p.sondertilgung || 0));
 
     // Miet-Netto
     const nichtUmlagefaehig = p.hausgeld * (p.nichtUmlagefaehigProzent / 100);
@@ -185,8 +200,15 @@ function simulate10Years(p, darlehenssumme, eigenkapital, annuitaet, afaInfo, ge
     // Cashflow vor Steuern
     const cashflowVorSteuern = nettoMietJahr - (annuitaet * 12) - p.grundsteuerJahr;
 
-    // AfA + Steuereffekt
-    const afaJahr = gebaeudewert * (afaInfo.rate / 100);
+    // AfA + Steuereffekt - handle degressive vs linear
+    let afaJahr;
+    if (afaInfo.label && afaInfo.label.includes('degressiv')) {
+      afaJahr = aktuellerGebaeudewert * (afaInfo.rate / 100);
+      aktuellerGebaeudewert -= afaJahr;
+    } else {
+      afaJahr = gebaeudewert * (afaInfo.rate / 100); // Linear stays the same
+    }
+
     const werbungskosten = zinsenJahr + afaJahr + (nichtUmlagefaehig * 12)
       + (p.verwaltungskostenMonat * 12) + (jahresmiete * p.leerstandswagnis / 100)
       + p.grundsteuerJahr;
@@ -219,9 +241,10 @@ function simulate10Years(p, darlehenssumme, eigenkapital, annuitaet, afaInfo, ge
     if (jahr < 10) {
       irrCashflows.push(cashflowNachSteuern);
     } else {
-      // Year 10: cashflow + sale proceeds - restschuld already included
-      const verkaufserloes = immobilienWert - restschuld; // no tax after 10 years
-      irrCashflows.push(cashflowNachSteuern + verkaufserloes);
+      // Year 10: cashflow + net sale proceeds (with selling costs deducted)
+      const verkaufsNebenkosten = immobilienWert * 0.02; // ~2% broker/selling fees
+      const nettoVerkaufserloes = immobilienWert - restschuld - verkaufsNebenkosten;
+      irrCashflows.push(cashflowNachSteuern + nettoVerkaufserloes);
     }
   }
 
