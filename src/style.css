@@ -129,9 +129,12 @@ input[type="number"] {
 }
 
 /* ── Heatmap Cell Hover ────────────────────────────────────── */
+.heatmap-cell {
+  position: relative;
+}
 .heatmap-cell:hover {
   transform: scale(1.08);
-  z-index: 2;
+  z-index: 10;
 }
 
 .heatmap-current {
