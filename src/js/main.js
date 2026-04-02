@@ -332,15 +332,21 @@ function updateEkFromEur() {
   $('dd-ek-pct-display').textContent = `= ${pct.toFixed(1).replace('.', ',')} %`;
 }
 
-// When Kaufpreis changes: keep the EUR value fixed, recalculate the percentage
+// When Kaufpreis changes: behavior depends on the active EK mode
 function updateEkFromKaufpreisChange() {
-  const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
-  const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
-  if (kaufpreis <= 0) return;
-  const pct = (eurVal / kaufpreis) * 100;
-  $('dd-eigenkapital').value = Math.round(pct * 10) / 10;
-  $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
-  $('dd-ek-pct-display').textContent = `= ${pct.toFixed(1).replace('.', ',')} %`;
+  if (ekMode === 'pct') {
+    // Keep percentage fixed, recalculate EUR
+    updateEkDisplays();
+  } else {
+    // Keep EUR fixed, recalculate percentage
+    const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
+    const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
+    if (kaufpreis <= 0) return;
+    const pct = (eurVal / kaufpreis) * 100;
+    $('dd-eigenkapital').value = Math.round(pct * 10) / 10;
+    $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
+    $('dd-ek-pct-display').textContent = `= ${pct.toFixed(1).replace('.', ',')} %`;
+  }
 }
 
 // ══════════════════════════════════════════════════════════
