@@ -16,6 +16,21 @@ let activeTab = 'dealchecker';
 let saveSource = 'qc'; // which tab initiated save
 let ekMode = 'pct'; // 'pct' or 'eur' — which EK input mode is active in Deep-Dive
 
+// Robust number parser for German formats
+function parseNumber(val) {
+  if (!val) return 0;
+  if (typeof val === 'number') return val;
+  let str = val.toString().trim();
+  if (str.includes(',')) {
+    str = str.replace(/\./g, '').replace(',', '.');
+  } else if ((str.match(/\./g) || []).length > 1) {
+    str = str.replace(/\./g, '');
+  } else if (str.includes('.') && str.split('.')[1].length === 3) {
+    str = str.replace(/\./g, '');
+  }
+  return parseFloat(str) || 0;
+}
+
 // ── Formatting Helpers ────────────────────────────────────
 const fmt = {
   eur: (v) => {
@@ -182,13 +197,13 @@ function updateSliderDisplays() {
 
 function getQuickCheckParams() {
   return {
-    kaufpreis: parseFloat($('qc-kaufpreis').value) || 0,
-    kaltmiete: parseFloat($('qc-kaltmiete').value) || 0,
-    hausgeld: parseFloat($('qc-hausgeld').value) || 0,
+    kaufpreis: parseNumber($('qc-kaufpreis').value),
+    kaltmiete: parseNumber($('qc-kaltmiete').value),
+    hausgeld: parseNumber($('qc-hausgeld').value),
     bundesland: $('qc-bundesland').value,
-    eigenkapitalProzent: parseFloat($('qc-ek-slider').value),
-    zinssatz: parseFloat($('qc-zins-slider').value),
-    tilgungssatz: parseFloat($('qc-tilgung-slider').value),
+    eigenkapitalProzent: parseNumber($('qc-ek-slider').value),
+    zinssatz: parseNumber($('qc-zins-slider').value),
+    tilgungssatz: parseNumber($('qc-tilgung-slider').value),
   };
 }
 
@@ -269,9 +284,16 @@ function syncToDeepDive() {
   $('dd-bundesland').value = $('qc-bundesland').value;
   $('dd-zinssatz').value = $('qc-zins-slider').value;
   $('dd-tilgung').value = $('qc-tilgung-slider').value;
-  // EK: sync the slider % to Deep-Dive %, then recalc EUR from that
-  $('dd-eigenkapital').value = $('qc-ek-slider').value;
-  updateEkFromKaufpreisChange();
+  
+  if (ekMode === 'pct') {
+    $('dd-eigenkapital').value = $('qc-ek-slider').value;
+    updateEkDisplays();
+  } else {
+    updateEkFromKaufpreisChange();
+    $('qc-ek-slider').value = $('dd-eigenkapital').value;
+    updateSliderDisplays();
+  }
+  
   refreshFormattedOverlays();
 }
 
@@ -312,8 +334,8 @@ function initEkToggle() {
 }
 
 function updateEkDisplays() {
-  const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
-  const pct = parseFloat($('dd-eigenkapital').value) || 0;
+  const kaufpreis = parseNumber($('dd-kaufpreis').value);
+  const pct = parseNumber($('dd-eigenkapital').value);
   const eurVal = Math.round(kaufpreis * pct / 100);
 
   // Only update EUR value if we're in percent mode (user typed %)
@@ -323,8 +345,8 @@ function updateEkDisplays() {
 }
 
 function updateEkFromEur() {
-  const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
-  const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
+  const kaufpreis = parseNumber($('dd-kaufpreis').value);
+  const eurVal = parseNumber($('dd-eigenkapital-eur').value);
   if (kaufpreis <= 0) return;
   const pct = (eurVal / kaufpreis) * 100;
   $('dd-eigenkapital').value = Math.round(pct * 10) / 10;
@@ -339,8 +361,8 @@ function updateEkFromKaufpreisChange() {
     updateEkDisplays();
   } else {
     // Keep EUR fixed, recalculate percentage
-    const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
-    const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
+    const kaufpreis = parseNumber($('dd-kaufpreis').value);
+    const eurVal = parseNumber($('dd-eigenkapital-eur').value);
     if (kaufpreis <= 0) return;
     const pct = (eurVal / kaufpreis) * 100;
     $('dd-eigenkapital').value = Math.round(pct * 10) / 10;
@@ -382,7 +404,7 @@ function initFormattedInputs() {
     });
 
     input.addEventListener('blur', () => {
-      const val = parseFloat(input.value);
+      const val = parseNumber(input.value);
       if (!isNaN(val) && Math.abs(val) >= 1000) {
         overlay.textContent = new Intl.NumberFormat('de-DE').format(val);
         overlay.style.display = 'flex';
@@ -403,7 +425,7 @@ function refreshFormattedOverlays() {
   document.querySelectorAll('.formatted-overlay').forEach(overlay => {
     const input = overlay.parentElement.querySelector('input');
     if (!input || document.activeElement === input) return;
-    const val = parseFloat(input.value);
+    const val = parseNumber(input.value);
     if (!isNaN(val) && Math.abs(val) >= 1000) {
       overlay.textContent = new Intl.NumberFormat('de-DE').format(val);
       overlay.style.display = 'flex';
@@ -459,30 +481,30 @@ function initDeepDive() {
 
 function getDeepDiveParams() {
   const afaTyp = $('dd-afa-typ').value;
-  const notarTotal = parseFloat($('dd-notar').value) || 2.0;
+  const notarTotal = parseNumber($('dd-notar').value) || 2.0;
   return {
-    kaufpreis: parseFloat($('dd-kaufpreis').value) || 0,
-    kaltmiete: parseFloat($('dd-kaltmiete').value) || 0,
-    hausgeld: parseFloat($('dd-hausgeld').value) || 0,
+    kaufpreis: parseNumber($('dd-kaufpreis').value),
+    kaltmiete: parseNumber($('dd-kaltmiete').value),
+    hausgeld: parseNumber($('dd-hausgeld').value),
     bundesland: $('dd-bundesland').value,
     baujahr: parseInt($('dd-baujahr').value) || 1990,
-    gebaeudeantelil: parseFloat($('dd-gebaeudeanteil').value) || 75,
-    eigenkapitalProzent: parseFloat($('dd-eigenkapital').value) || 0,
-    zinssatz: parseFloat($('dd-zinssatz').value) || 3.5,
-    tilgungssatz: parseFloat($('dd-tilgung').value) || 2,
+    gebaeudeantelil: parseNumber($('dd-gebaeudeanteil').value) || 75,
+    eigenkapitalProzent: parseNumber($('dd-eigenkapital').value),
+    zinssatz: parseNumber($('dd-zinssatz').value) || 3.5,
+    tilgungssatz: parseNumber($('dd-tilgung').value) || 2,
     zinsbindung: parseInt($('dd-zinsbindung').value) || 10,
-    sondertilgung: parseFloat($('dd-sondertilgung').value) || 0,
-    modernisierungskosten: parseFloat($('dd-modernisierung').value) || 0,
-    maklerkosten: parseFloat($('dd-makler').value) || 0,
+    sondertilgung: parseNumber($('dd-sondertilgung').value),
+    modernisierungskosten: parseNumber($('dd-modernisierung').value),
+    maklerkosten: parseNumber($('dd-makler').value),
     notarkosten: notarTotal * 0.75, // rough split
     grundbuchkosten: notarTotal * 0.25,
-    nichtUmlagefaehigProzent: parseFloat($('dd-nichtumlagefaehig').value) || 35,
-    verwaltungskostenMonat: parseFloat($('dd-verwaltung').value) || 25,
-    leerstandswagnis: parseFloat($('dd-leerstand').value) || 3,
-    mietsteigerungPa: parseFloat($('dd-mietsteigerung').value) || 1.5,
-    grenzsteuersatz: parseFloat($('dd-steuersatz').value) || 42,
-    grundsteuerJahr: parseFloat($('dd-grundsteuer').value) || 400,
-    wertsteigerungPa: parseFloat($('dd-wertsteigerung').value) || 1.5,
+    nichtUmlagefaehigProzent: parseNumber($('dd-nichtumlagefaehig').value) || 35,
+    verwaltungskostenMonat: parseNumber($('dd-verwaltung').value) || 25,
+    leerstandswagnis: parseNumber($('dd-leerstand').value) || 3,
+    mietsteigerungPa: parseNumber($('dd-mietsteigerung').value) || 1.5,
+    grenzsteuersatz: parseNumber($('dd-steuersatz').value) || 42,
+    grundsteuerJahr: parseNumber($('dd-grundsteuer').value) || 400,
+    wertsteigerungPa: parseNumber($('dd-wertsteigerung').value) || 1.5,
     afaType: afaTyp === 'auto' ? undefined : afaTyp,
   };
 }
