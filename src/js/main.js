@@ -57,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateConnectionBadge();
   initEkToggle();
   updateEkDisplays();
+  initFormattedInputs();
 });
 
 // ── Authentication UI ───────────────────────────────────────
@@ -266,10 +267,11 @@ function syncToDeepDive() {
   $('dd-kaltmiete').value = $('qc-kaltmiete').value;
   $('dd-hausgeld').value = $('qc-hausgeld').value;
   $('dd-bundesland').value = $('qc-bundesland').value;
-  $('dd-eigenkapital').value = $('qc-ek-slider').value;
   $('dd-zinssatz').value = $('qc-zins-slider').value;
   $('dd-tilgung').value = $('qc-tilgung-slider').value;
-  updateEkDisplays();
+  // EK: sync the slider % to Deep-Dive %, then recalc EUR from that
+  $('dd-eigenkapital').value = $('qc-ek-slider').value;
+  updateEkFromKaufpreisChange();
 }
 
 // Sync shared fields: Deep-Dive → Deal-Checker
@@ -312,6 +314,7 @@ function updateEkDisplays() {
   const pct = parseFloat($('dd-eigenkapital').value) || 0;
   const eurVal = Math.round(kaufpreis * pct / 100);
 
+  // Only update EUR value if we're in percent mode (user typed %)
   $('dd-eigenkapital-eur').value = eurVal;
   $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
   $('dd-ek-pct-display').textContent = `= ${pct.toFixed(0).replace('.', ',')} %`;
@@ -322,9 +325,69 @@ function updateEkFromEur() {
   const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
   if (kaufpreis <= 0) return;
   const pct = (eurVal / kaufpreis) * 100;
-  $('dd-eigenkapital').value = Math.round(pct * 10) / 10; // round to 1 decimal
+  $('dd-eigenkapital').value = Math.round(pct * 10) / 10;
   $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
   $('dd-ek-pct-display').textContent = `= ${pct.toFixed(1).replace('.', ',')} %`;
+}
+
+// When Kaufpreis changes: keep the EUR value fixed, recalculate the percentage
+function updateEkFromKaufpreisChange() {
+  const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
+  const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
+  if (kaufpreis <= 0) return;
+  const pct = (eurVal / kaufpreis) * 100;
+  $('dd-eigenkapital').value = Math.round(pct * 10) / 10;
+  $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
+  $('dd-ek-pct-display').textContent = `= ${pct.toFixed(1).replace('.', ',')} %`;
+}
+
+// ══════════════════════════════════════════════════════════
+// GERMAN NUMBER FORMATTING FOR INPUTS
+// ══════════════════════════════════════════════════════════
+
+function initFormattedInputs() {
+  // All EUR-value input fields that benefit from thousands separators
+  const eurInputIds = ['qc-kaufpreis', 'dd-kaufpreis', 'dd-eigenkapital-eur',
+                       'dd-sondertilgung', 'dd-modernisierung', 'dd-grundsteuer',
+                       'qc-kaltmiete', 'qc-hausgeld', 'dd-kaltmiete', 'dd-hausgeld',
+                       'dd-verwaltung'];
+
+  eurInputIds.forEach(id => {
+    const input = $(id);
+    if (!input) return;
+
+    // Create a formatted overlay span
+    const wrapper = document.createElement('div');
+    wrapper.className = 'relative';
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+
+    const overlay = document.createElement('div');
+    overlay.className = 'formatted-overlay pointer-events-none absolute inset-0 flex items-center px-3.5 font-mono text-[0.95rem] font-medium text-slate-100';
+    overlay.style.display = 'none';
+    wrapper.appendChild(overlay);
+
+    // Show formatted overlay when not focused
+    input.addEventListener('focus', () => {
+      overlay.style.display = 'none';
+      input.style.color = '';
+    });
+
+    input.addEventListener('blur', () => {
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && Math.abs(val) >= 1000) {
+        overlay.textContent = new Intl.NumberFormat('de-DE').format(val);
+        overlay.style.display = 'flex';
+        input.style.color = 'transparent';
+      } else {
+        overlay.style.display = 'none';
+        input.style.color = '';
+      }
+    });
+
+    // Trigger initial formatting
+    input.dispatchEvent(new Event('blur'));
+  });
 }
 
 // ══════════════════════════════════════════════════════════
@@ -350,7 +413,7 @@ function initDeepDive() {
     const handler = () => {
       if (id === 'dd-eigenkapital') updateEkDisplays();
       if (id === 'dd-eigenkapital-eur') updateEkFromEur();
-      if (id === 'dd-kaufpreis') updateEkDisplays();
+      if (id === 'dd-kaufpreis') updateEkFromKaufpreisChange();
       if (sharedFields.includes(id)) {
         syncToDealChecker();
         runQuickCheck();
