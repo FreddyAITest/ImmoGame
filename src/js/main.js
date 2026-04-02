@@ -272,6 +272,7 @@ function syncToDeepDive() {
   // EK: sync the slider % to Deep-Dive %, then recalc EUR from that
   $('dd-eigenkapital').value = $('qc-ek-slider').value;
   updateEkFromKaufpreisChange();
+  refreshFormattedOverlays();
 }
 
 // Sync shared fields: Deep-Dive → Deal-Checker
@@ -284,6 +285,7 @@ function syncToDealChecker() {
   $('qc-zins-slider').value = $('dd-zinssatz').value;
   $('qc-tilgung-slider').value = $('dd-tilgung').value;
   updateSliderDisplays();
+  refreshFormattedOverlays();
 }
 
 // ══════════════════════════════════════════════════════════
@@ -387,6 +389,23 @@ function initFormattedInputs() {
 
     // Trigger initial formatting
     input.dispatchEvent(new Event('blur'));
+  });
+}
+
+// Refresh all formatted overlays (call after programmatic value changes)
+function refreshFormattedOverlays() {
+  document.querySelectorAll('.formatted-overlay').forEach(overlay => {
+    const input = overlay.parentElement.querySelector('input');
+    if (!input || document.activeElement === input) return;
+    const val = parseFloat(input.value);
+    if (!isNaN(val) && Math.abs(val) >= 1000) {
+      overlay.textContent = new Intl.NumberFormat('de-DE').format(val);
+      overlay.style.display = 'flex';
+      input.style.color = 'transparent';
+    } else {
+      overlay.style.display = 'none';
+      input.style.color = '';
+    }
   });
 }
 
