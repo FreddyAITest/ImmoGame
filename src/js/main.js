@@ -14,6 +14,7 @@ let cashflowChart = null;
 let wealthChart = null;
 let activeTab = 'dealchecker';
 let saveSource = 'qc'; // which tab initiated save
+let ekMode = 'pct'; // 'pct' or 'eur' — which EK input mode is active in Deep-Dive
 
 // ── Formatting Helpers ────────────────────────────────────
 const fmt = {
@@ -54,6 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
   runQuickCheck();
   runDeepDive();
   updateConnectionBadge();
+  initEkToggle();
+  updateEkDisplays();
 });
 
 // ── Authentication UI ───────────────────────────────────────
@@ -152,7 +155,9 @@ function initQuickCheck() {
     if (!el) return;
     el.addEventListener('input', () => {
       updateSliderDisplays();
+      syncToDeepDive();
       runQuickCheck();
+      runDeepDive();
     });
   });
 
@@ -251,6 +256,76 @@ function renderQuickCheckResults(r) {
   `;
   $('qc-nk-breakdown').innerHTML = nkHtml;
 }
+// ══════════════════════════════════════════════════════════
+// BIDIRECTIONAL SYNC (Deal-Checker ↔ Deep-Dive)
+// ══════════════════════════════════════════════════════════
+
+// Sync shared fields: Deal-Checker → Deep-Dive
+function syncToDeepDive() {
+  $('dd-kaufpreis').value = $('qc-kaufpreis').value;
+  $('dd-kaltmiete').value = $('qc-kaltmiete').value;
+  $('dd-hausgeld').value = $('qc-hausgeld').value;
+  $('dd-bundesland').value = $('qc-bundesland').value;
+  $('dd-eigenkapital').value = $('qc-ek-slider').value;
+  $('dd-zinssatz').value = $('qc-zins-slider').value;
+  $('dd-tilgung').value = $('qc-tilgung-slider').value;
+  updateEkDisplays();
+}
+
+// Sync shared fields: Deep-Dive → Deal-Checker
+function syncToDealChecker() {
+  $('qc-kaufpreis').value = $('dd-kaufpreis').value;
+  $('qc-kaltmiete').value = $('dd-kaltmiete').value;
+  $('qc-hausgeld').value = $('dd-hausgeld').value;
+  $('qc-bundesland').value = $('dd-bundesland').value;
+  $('qc-ek-slider').value = $('dd-eigenkapital').value;
+  $('qc-zins-slider').value = $('dd-zinssatz').value;
+  $('qc-tilgung-slider').value = $('dd-tilgung').value;
+  updateSliderDisplays();
+}
+
+// ══════════════════════════════════════════════════════════
+// EK TOGGLE (% ↔ EUR)
+// ══════════════════════════════════════════════════════════
+
+function initEkToggle() {
+  const toggleBtn = $('dd-ek-toggle');
+  if (!toggleBtn) return;
+
+  toggleBtn.addEventListener('click', () => {
+    if (ekMode === 'pct') {
+      ekMode = 'eur';
+      $('dd-ek-pct-wrap').classList.add('hidden');
+      $('dd-ek-eur-wrap').classList.remove('hidden');
+      toggleBtn.textContent = '% / €';
+    } else {
+      ekMode = 'pct';
+      $('dd-ek-eur-wrap').classList.add('hidden');
+      $('dd-ek-pct-wrap').classList.remove('hidden');
+      toggleBtn.textContent = '€ / %';
+    }
+  });
+}
+
+function updateEkDisplays() {
+  const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
+  const pct = parseFloat($('dd-eigenkapital').value) || 0;
+  const eurVal = Math.round(kaufpreis * pct / 100);
+
+  $('dd-eigenkapital-eur').value = eurVal;
+  $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
+  $('dd-ek-pct-display').textContent = `= ${pct.toFixed(0).replace('.', ',')} %`;
+}
+
+function updateEkFromEur() {
+  const kaufpreis = parseFloat($('dd-kaufpreis').value) || 0;
+  const eurVal = parseFloat($('dd-eigenkapital-eur').value) || 0;
+  if (kaufpreis <= 0) return;
+  const pct = (eurVal / kaufpreis) * 100;
+  $('dd-eigenkapital').value = Math.round(pct * 10) / 10; // round to 1 decimal
+  $('dd-ek-eur-display').textContent = `= ${new Intl.NumberFormat('de-DE').format(eurVal)} €`;
+  $('dd-ek-pct-display').textContent = `= ${pct.toFixed(1).replace('.', ',')} %`;
+}
 
 // ══════════════════════════════════════════════════════════
 // TAB 2: DEEP DIVE
@@ -258,18 +333,32 @@ function renderQuickCheckResults(r) {
 function initDeepDive() {
   const inputs = [
     'dd-kaufpreis', 'dd-wohnflaeche', 'dd-baujahr', 'dd-bundesland',
-    'dd-gebaeudeanteil', 'dd-eigenkapital', 'dd-zinssatz', 'dd-tilgung',
+    'dd-gebaeudeanteil', 'dd-eigenkapital', 'dd-eigenkapital-eur', 'dd-zinssatz', 'dd-tilgung',
     'dd-zinsbindung', 'dd-sondertilgung', 'dd-modernisierung', 'dd-makler',
     'dd-notar', 'dd-kaltmiete', 'dd-hausgeld', 'dd-nichtumlagefaehig',
     'dd-verwaltung', 'dd-leerstand', 'dd-mietsteigerung', 'dd-steuersatz',
     'dd-grundsteuer', 'dd-wertsteigerung', 'dd-afa-typ'
   ];
 
+  // Shared fields that should sync back to Deal-Checker
+  const sharedFields = ['dd-kaufpreis', 'dd-kaltmiete', 'dd-hausgeld', 'dd-bundesland',
+                        'dd-eigenkapital', 'dd-eigenkapital-eur', 'dd-zinssatz', 'dd-tilgung'];
+
   inputs.forEach(id => {
     const el = $(id);
     if (!el) return;
-    el.addEventListener('input', runDeepDive);
-    el.addEventListener('change', runDeepDive);
+    const handler = () => {
+      if (id === 'dd-eigenkapital') updateEkDisplays();
+      if (id === 'dd-eigenkapital-eur') updateEkFromEur();
+      if (id === 'dd-kaufpreis') updateEkDisplays();
+      if (sharedFields.includes(id)) {
+        syncToDealChecker();
+        runQuickCheck();
+      }
+      runDeepDive();
+    };
+    el.addEventListener('input', handler);
+    el.addEventListener('change', handler);
   });
 
   $('dd-save-btn').addEventListener('click', () => {
