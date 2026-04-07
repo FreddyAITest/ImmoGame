@@ -106,6 +106,9 @@
       <button class="tab-btn flex-1 py-3 px-5 text-sm font-semibold text-slate-400 rounded-xl transition-all duration-250 cursor-pointer whitespace-nowrap border-none bg-transparent hover:text-slate-100 hover:bg-white/[0.04]" data-tab="deals" role="tab" id="tab-deals">
         <span class="mr-2">💾</span>Meine Deals
       </button>
+      <button class="tab-btn flex-1 py-3 px-5 text-sm font-semibold text-slate-400 rounded-xl transition-all duration-250 cursor-pointer whitespace-nowrap border-none bg-transparent hover:text-slate-100 hover:bg-white/[0.04]" data-tab="devtab" role="tab" id="tab-devtab">
+        <span class="mr-2">🧪</span>Dev Tab
+      </button>
     </nav>
 
     <!-- ═══ TAB 1: Deal-Checker ═══ -->
@@ -462,6 +465,23 @@
           <button class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white/5 text-slate-400 border border-glass-border rounded-lg transition-all duration-250 hover:bg-white/[0.08] hover:text-slate-100 hover:border-glass-border-hover cursor-pointer" id="deals-export-btn">📤 JSON exportieren</button>
           <button class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold bg-white/5 text-slate-400 border border-glass-border rounded-lg transition-all duration-250 hover:bg-white/[0.08] hover:text-slate-100 hover:border-glass-border-hover cursor-pointer" id="deals-import-btn">📥 JSON importieren</button>
         </div>
+      </div>
+    </section>
+
+    <!-- ═══ TAB 5: Dev Tab (Monte Carlo) ═══ -->
+    <section class="tab-content tab-animate hidden" id="content-devtab" role="tabpanel">
+      <div class="card-shine relative bg-dark-700/65 border border-glass-border rounded-[20px] p-7 backdrop-blur-glass mb-6">
+        <div class="text-xs font-bold uppercase tracking-[1.5px] text-slate-500 mb-4 flex items-center gap-2"><span>🧪</span> Monte Carlo Simulation (10 Jahre)</div>
+        <p class="text-slate-400 text-sm mb-6">Wir simulieren Schwankungen bei Miete, Wert und Leerstand in 1000 iterativen Durchläufen, um ein 90%-Konfidenzintervall (P05 bis P95) für die Eigenkapital-Rendite pro Jahr (Cash-on-Cash Return) zu berechnen.</p>
+        
+        <div class="bg-dark-700/65 border border-glass-border rounded-xl p-5 mb-6 flex items-center justify-between">
+          <div class="text-sm text-slate-300">Wir sind <strong class="text-white">95% sicher</strong>, dass die tatsächliche Rendite <strong>oberhalb des unteren Randes (P05)</strong> liegt.</div>
+          <button id="devtab-run-btn" class="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-white/5 text-slate-300 border border-glass-border rounded-lg transition-all duration-250 hover:bg-white/[0.08] hover:text-white cursor-pointer">
+            🔄 Simulation neustarten
+          </button>
+        </div>
+
+        <div class="relative w-full py-4"><canvas id="dev-monte-carlo-chart" class="w-full !h-[400px]"></canvas></div>
       </div>
     </section>
 

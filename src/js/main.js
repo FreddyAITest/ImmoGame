@@ -3,6 +3,7 @@
 // ============================================================
 
 import { calculateDeal, calculateSensitivity, generateRange } from './core/calculator.js';
+import { runMonteCarlo } from './core/montecarlo.js';
 import { BUNDESLAENDER, DEFAULTS, SENSITIVITY } from './core/constants.js';
 import { saveDeal as storageSaveDeal, getAllDeals, deleteDeal, loadDeal, exportDeals, importDeals, getConnectionStatus } from './api/storage.js';
 import { signIn, signOut, onAuthStateChange } from './api/auth.js';
@@ -12,6 +13,7 @@ let currentResults = null;
 let currentParams = null;
 let cashflowChart = null;
 let wealthChart = null;
+let devMonteCarloChart = null;
 let activeTab = 'dealchecker';
 let saveSource = 'qc'; // which tab initiated save
 let ekMode = 'pct'; // 'pct' or 'eur' — which EK input mode is active in Deep-Dive
@@ -60,6 +62,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTabs();
   initQuickCheck();
   initDeepDive();
+  initDevTab();
   initCollapsibles();
   initSaveModal();
   initDealsTab();
@@ -155,6 +158,7 @@ function activateTab(tab) {
   });
 
   if (tab === 'stresstest') runStressTest();
+  if (tab === 'devtab') runDevTabMonteCarlo();
   if (tab === 'deals') renderDealList();
 }
 
@@ -814,6 +818,116 @@ function renderScenarios(params) {
 
   setCF('st-worst-cf', worst.cashflowVorSteuernMonat);
   $('st-worst-rendite').textContent = fmt.pct(worst.bruttoMietrendite);
+}
+
+// ══════════════════════════════════════════════════════════
+// TAB 5: DEV TAB (MONTE CARLO)
+// ══════════════════════════════════════════════════════════
+function initDevTab() {
+  const btn = $('devtab-run-btn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      btn.textContent = 'Berechne...';
+      btn.disabled = true;
+      setTimeout(() => {
+        runDevTabMonteCarlo();
+        btn.textContent = '🔄 Simulation neustarten';
+        btn.disabled = false;
+      }, 50); // slight timeout to allow UI update
+    });
+  }
+}
+
+function runDevTabMonteCarlo() {
+  const params = currentParams || getDeepDiveParams();
+  if (!params.kaufpreis || !params.kaltmiete) return;
+
+  const results = runMonteCarlo(params, 1000);
+  renderMonteCarloChart(results);
+}
+
+function renderMonteCarloChart(yoyData) {
+  const ctx = $('dev-monte-carlo-chart').getContext('2d');
+
+  const labels = yoyData.map(y => `Jahr ${y.jahr}`);
+  const dataP05 = yoyData.map(y => y.p05);
+  const dataMedian = yoyData.map(y => y.p50);
+  const dataP95 = yoyData.map(y => y.p95);
+
+  if (devMonteCarloChart) devMonteCarloChart.destroy();
+
+  devMonteCarloChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'P95 (Oberer Rand)',
+          data: dataP95,
+          borderColor: 'rgba(245, 166, 35, 0.2)', // faded gold
+          backgroundColor: 'transparent',
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: false,
+          tension: 0.4
+        },
+        {
+          label: 'Median (P50)',
+          data: dataMedian,
+          borderColor: '#F5A623', // solid gold
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#F5A623',
+          fill: false,
+          tension: 0.4
+        },
+        {
+          label: 'P05 (Unterer Rand, 95% Sicherheit)',
+          data: dataP05,
+          borderColor: 'rgba(239, 68, 68, 0.8)', // red warning boundary
+          backgroundColor: 'rgba(245, 166, 35, 0.1)', // fill color between P95 and P05
+          borderDash: [5, 5],
+          pointRadius: 0,
+          fill: 0, // Fill to dataset 0 (P95)
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          labels: { color: '#94A3B8', font: { family: 'Inter', size: 11 } }
+        },
+        tooltip: {
+          backgroundColor: '#1E293B',
+          titleColor: '#F1F5F9',
+          bodyColor: '#94A3B8',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          callbacks: {
+            label: (ctx) => `${ctx.dataset.label}: ${ctx.raw.toFixed(2).replace('.', ',')} %`,
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748B', font: { family: 'Inter', size: 11 } },
+          grid: { color: 'rgba(255,255,255,0.03)' }
+        },
+        y: {
+          ticks: {
+            color: '#64748B',
+            font: { family: 'JetBrains Mono', size: 11 },
+            callback: (v) => v.toFixed(1).replace('.', ',') + ' %'
+          },
+          grid: { color: 'rgba(255,255,255,0.03)' }
+        }
+      }
+    }
+  });
 }
 
 // ══════════════════════════════════════════════════════════
